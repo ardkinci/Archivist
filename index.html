@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Archivist v1</title>
+    <style>
+        :root {
+            --bg-root: #0a0a0a; --bg-panel: #141414; --bg-surface: #1c1c1c;
+            --border-subtle: #2a2a2a; --border-focus: #444;
+            --text-main: #ededed; --text-muted: #888;
+            --accent: #5e6ad2; --accent-hover: #7380eb;
+            --danger: #e5484d; --success: #30a46c;
+            --font-stack: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            --mono-font: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+        }
+        * { box-sizing: border-box; outline: none; }
+        body { margin: 0; font-family: var(--font-stack); background: var(--bg-root); color: var(--text-main); height: 100vh; overflow: hidden; display: flex; flex-direction: column; font-size: 13px; letter-spacing: -0.01em; }
+
+        *::-webkit-scrollbar { width: 8px; height: 8px; background-color: transparent; }
+        *::-webkit-scrollbar-track { background: transparent; }
+        *::-webkit-scrollbar-thumb { background-color: #333; border-radius: 4px; border: 2px solid var(--bg-root); }
+        *::-webkit-scrollbar-thumb:hover { background-color: #555; }
+        *::-webkit-scrollbar-corner { background: transparent; }
+        * { scrollbar-width: thin; scrollbar-color: #333 var(--bg-root); }
+
+
+        /* UTILS */
+        .flex { display: flex; } .col { flex-direction: column; } .center { align-items: center; justify-content: center; } .gap-2 { gap: 8px; } .flex-1 { flex: 1; }
+        .hidden { display: none !important; } .text-muted { color: var(--text-muted); } .font-mono { font-family: var(--mono-font); }
+        .p-4 { padding: 16px; }
+
+        /* COMPONENTS */
+        .btn { background: var(--bg-surface); border: 1px solid var(--border-subtle); color: var(--text-main); padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 500; transition: all 0.15s; display: inline-flex; align-items: center; gap: 6px; height: 32px; }
+        .btn:hover { border-color: var(--border-focus); background: #222; }
+        .btn.primary { background: var(--accent); border-color: transparent; color: white; }
+        .btn.primary:hover { background: var(--accent-hover); }
+        .btn.danger { color: var(--danger); border-color: rgba(229, 72, 77, 0.2); background: rgba(229, 72, 77, 0.05); }
+        .btn.danger:hover { background: rgba(229, 72, 77, 0.1); }
+        .btn-icon { width: 32px; padding: 0; justify-content: center; }
+
+        input, select, textarea { background: var(--bg-root); border: 1px solid var(--border-subtle); color: var(--text-main); padding: 8px 10px; border-radius: 6px; width: 100%; font-family: inherit; font-size: 13px; transition: border 0.15s; }
+        input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+        input[readonly] { background: var(--bg-panel); color: var(--text-muted); cursor: not-allowed; }
+        label { display: block; font-size: 11px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
+
+        .badge { display: inline-flex; align-items: center; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; text-transform: uppercase; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: var(--text-muted); }
+
+        /* --- BRAND BAR STYLES (YENİ) --- */
+        .brand-bar { height: 36px; background: #000; border-bottom: 1px solid var(--border-subtle); display: flex; align-items: center; justify-content: space-between; padding: 0 16px; flex-shrink: 0; z-index: 50; }
+        .brand-logo { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 11px; letter-spacing: 0.05em; color: #fff; font-family: var(--font-stack); }
+        .version-tag { background: #222; color: #666; padding: 1px 4px; border-radius: 3px; font-size: 9px; font-family: var(--mono-font); }
+        .brand-actions { display: flex; align-items: center; gap: 15px; }
+        .brand-link { text-decoration: none; color: #666; font-size: 11px; transition: 0.2s; }
+        .brand-link:hover { color: var(--text-main); }
+        .user-avatar { width: 20px; height: 20px; background: var(--accent); color: white; border-radius: 50%; font-size: 9px; display: flex; align-items: center; justify-content: center; font-weight: bold; cursor: pointer; }
+
+        .context-tagline { font-size: 11px; font-weight: 500; color: var(--text-muted); opacity: 0.7; margin-top: 3px; display: block; }
+
+
+        /* header { flex-shrink: 0; background: var(--bg-panel); } */
+
+        /* LAYOUT */
+        header { height: 54px; background: var(--bg-panel); border-bottom: 1px solid var(--border-subtle); display: flex; align-items: center; justify-content: space-between; padding: 0 16px; flex-shrink: 0; }
+        .brand-col { display: flex; flex-direction: column; justify-content: center; }
+        .app-title { font-weight: 700; font-size: 14px; display: flex; align-items: center; gap: 8px; }
+        .root-path-display { font-family: var(--mono-font); font-size: 11px; color: var(--text-muted); cursor: pointer; margin-top: 2px; display: flex; align-items: center; gap: 5px; opacity: 0.7; transition: 0.2s; }
+        .root-path-display:hover { opacity: 1; color: var(--accent); }
+        
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-muted); }
+        .status-dot.active { background: var(--success); box-shadow: 0 0 8px rgba(48, 164, 108, 0.4); }
+
+        .workspace { display: flex; height: calc(100vh - 90px); }
+        /* .workspace { display: flex; flex: 1; overflow: hidden; height: auto; } */
+        
+        /* SIDEBAR & FORM */
+        .sidebar { width: 400px; background: var(--bg-panel); border-right: 1px solid var(--border-subtle); display: flex; flex-direction: column; flex-shrink: 0; }
+        .drop-zone { margin: 16px; border: 1px dashed var(--border-subtle); border-radius: 6px; padding: 20px; text-align: center; color: var(--text-muted); transition: 0.2s; background: rgba(255,255,255,0.01); }
+        .drop-zone.active { border-color: var(--accent); background: rgba(94, 106, 210, 0.1); color: var(--accent); }
+        .form-content { flex: 1; overflow-y: auto; padding: 0 16px 16px 16px; }
+        .group-details { margin-bottom: 15px; border: 1px solid var(--border-subtle); border-radius: 6px; background: rgba(255,255,255,0.02); }
+        .group-summary { padding: 10px; cursor: pointer; font-weight: 600; font-size: 12px; user-select: none; display: flex; justify-content: space-between; }
+        .group-body { padding: 15px; border-top: 1px solid var(--border-subtle); }
+        .form-group { margin-bottom: 16px; }
+
+        /* TABLE */
+        .main-panel { flex: 1; display: flex; flex-direction: column; background: var(--bg-root); overflow: hidden; }
+        .table-toolbar { padding: 10px 16px; border-bottom: 1px solid var(--border-subtle); display: flex; gap: 10px; align-items: center; background: var(--bg-panel); }
+        .table-wrap { overflow: auto; flex: 1; }
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; padding: 10px 16px; border-bottom: 1px solid var(--border-subtle); background: var(--bg-panel); position: sticky; top: 0; font-size: 11px; color: var(--text-muted); text-transform: uppercase; font-weight: 600; z-index: 10; }
+        td { padding: 10px 16px; border-bottom: 1px solid var(--border-subtle); color: var(--text-main); white-space: nowrap; max-width: 300px; overflow: hidden; text-overflow: ellipsis; }
+        tbody tr:hover { background: rgba(255,255,255,0.03); cursor: pointer; }
+        tbody tr.active-row { background: rgba(94, 106, 210, 0.1); border-left: 2px solid var(--accent); }
+
+        /* ADMIN OVERLAY */
+        #admin-view { position: absolute; top:36px; left: 0; width: 100%; height: calc(100vh - 36px); background: #050505; z-index: 100; display: flex; flex-direction: column; }
+        .admin-header { padding: 20px; border-bottom: 1px solid var(--border-subtle); display: flex; justify-content: space-between; align-items: center; background: #0a0a0a; flex-shrink: 0; }
+        .admin-body { flex: 1; overflow-y: auto; padding: 30px; display: flex; justify-content: center; }
+        .schema-container { max-width: 900px; width: 100%; padding-bottom: 100px; }
+        .schema-card { background: var(--bg-panel); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 16px; margin-bottom: 16px; position: relative; }
+        .card-row { display: flex; gap: 12px; margin-bottom: 12px; align-items: center; }
+        .remove-icon { position: absolute; right: 10px; top: 10px; color: var(--danger); cursor: pointer; opacity: 0.5; } .remove-icon:hover { opacity: 1; }
+
+        /* LOADER & TOAST */
+        #loader { position: fixed; inset: 0; background: var(--bg-root); z-index: 2000; display: flex; align-items: center; justify-content: center; }
+        .loader-box { width: 350px; text-align: center; padding: 40px; background: var(--bg-panel); border: 1px solid var(--border-subtle); border-radius: 8px; border-style: dashed; transition: all 0.2s ease; }
+        .loader-box.drag-active { border-color: var(--accent); background: rgba(94, 106, 210, 0.15); transform: scale(1.02); box-shadow: 0 0 20px rgba(94, 106, 210, 0.3); }
+        #toast { position: fixed; bottom: 20px; right: 20px; background: var(--bg-surface); border: 1px solid var(--border-subtle); color: white; padding: 12px 20px; border-radius: 6px; transform: translateY(100px); opacity: 0; transition: 0.3s; z-index: 3000; display: flex; gap: 10px; }
+        #toast.show { transform: translateY(0); opacity: 1; }
+    </style>
+</head>
+<body>
+    <div class="brand-bar">
+        <div class="brand-logo">
+            <!-- LOGO -->
+
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="var(--accent)">
+                <rect x="2" y="4" width="20" height="4" rx="1"></rect>
+                <rect x="2" y="10" width="16" height="4" rx="1"></rect>
+                <rect x="2" y="16" width="20" height="4" rx="1"></rect>
+            </svg>
+
+            <!-- LOGO 2 (Alternate) -->
+            <!-- 
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent);">
+                <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                <polyline points="2 17 12 22 22 17"></polyline>
+                <polyline points="2 12 12 17 22 12"></polyline>
+            </svg> 
+            -->
+
+            <span>ARCHIVIST</span>
+            <span class="version-tag">v1</span><br>
+        </div>
+        
+        <div class="brand-actions">
+            <a href="#" class="brand-link">Documentation</a>
+            <a target="_blank" href="https://github.com/ardkinci/archivist" class="brand-link">GitHub</a>
+            <a target="_blank" href="https://github.com/ardkinci"><div class="user-avatar" title="User Profile"><img src="https://avatars.githubusercontent.com/u/241416198?v=4" alt="Logo" width="20px"></div></a>
+            
+        </div>
+    </div>
+    <!-- TOAST -->
+    <div id="toast"></div>
+
+    <!-- LOADER -->
+    <div id="loader">
+        <div class="loader-box" id="loader-drop-zone">
+            <h2 style="margin:0 0 10px 0;">Archivist <span style="color:var(--accent); font-size:0.6em; vertical-align: super;">v1</span></h2>
+            <p class="text-muted" style="margin-bottom: 25px;">Portable Architecture Edition</p>
+            <button class="btn primary" style="width:100%; justify-content:center; padding:10px;" onclick="IO.openLibrary()">📂 Open Library JSON</button>
+            <button class="btn" style="width:100%; justify-content:center; padding:10px; margin-top:10px; border-style:dashed;" onclick="Logic.createNew()">✨ Create New Library</button>
+            <span style="font-size:11px; opacity:0.6; margin-top:5px; display:block;">Or drag & drop .json file here</span>
+            <input type="file" id="file-input" accept=".json" style="display:none" onchange="IO.handleFileSelect(this.files[0])">
+        </div>
+    </div>
+
+    <!-- APP SHELL -->
+    <div id="app" class="hidden col h-100">
+        <header>
+            <div class="brand-col">
+                <div class="app-title">
+                    <span id="status-dot" class="status-dot" title="Local Mode"></span>
+                    <span id="app-title-text">Library</span>
+                    <span id="unsaved-badge" class="badge" style="background:var(--danger); color:white; border:none; display:none;">Unsaved</span>
+                </div>
+                <!-- ROOT PATH DISPLAY -->
+                <div id="root-path-display" class="root-path-display" onclick="Logic.editRootPath()" title="Click to edit Root Path">
+                    📂 Root: Not Set
+                </div>
+            </div>
+            <div class="flex gap-2">
+                <button class="btn" onclick="Admin.toggleView()">🛠 Schema</button>
+                <button class="btn primary" onclick="IO.saveSmart()">💾 Save</button>
+                <button class="btn btn-icon" title="Download Backup" onclick="IO.downloadCopy()">⬇</button>
+                <button class="btn danger btn-icon" title="Close" onclick="location.reload()">✕</button>
+            </div>
+        </header>
+
+        <div id="workspace" class="workspace">
+            <aside class="sidebar">
+                <div id="drop-zone" class="drop-zone">
+                    <div style="font-weight:600; color:var(--text-main);">Drop Asset Here</div>
+                    <div style="font-size:11px;">Auto-fill metadata</div>
+                </div>
+                <form id="editor-form" class="form-content"></form>
+                <div class="p-4 flex gap-2" style="border-top:1px solid var(--border-subtle); background:var(--bg-panel);">
+                    <button type="button" class="btn primary flex-1" onclick="Logic.saveItem()">Update / Add</button>
+                    <button type="button" class="btn" onclick="Logic.clearForm()">New</button>
+                    <button type="button" class="btn danger btn-icon" onclick="Logic.deleteItem()">🗑</button>
+                </div>
+            </aside>
+
+            <section class="main-panel">
+                <div class="table-toolbar">
+                    <input type="text" id="search-input" placeholder="Search assets..." style="max-width:300px;" onkeyup="UI.renderTable()">
+                    <div class="flex-1"></div>
+                    <span id="stats-display" class="text-muted" style="font-size:11px;">0 items</span>
+                </div>
+                <div class="table-wrap">
+                    <table id="data-table">
+                        <thead><tr id="table-head"></tr></thead>
+                        <tbody id="table-body"></tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+
+        <!-- ADMIN OVERLAY -->
+        <div id="admin-view" class="hidden">
+            <div class="admin-header">
+                <h2 style="margin:0;">Schema Designer</h2>
+                <div class="flex gap-2">
+                    <button class="btn primary" onclick="Admin.saveSchema()">✔ Apply & Save</button>
+                    <button class="btn" onclick="Admin.toggleView()">Cancel</button>
+                </div>
+            </div>
+            <div class="admin-body">
+                <div class="schema-container">
+                    <h3 style="border-bottom:1px solid var(--border-subtle); padding-bottom:10px;">Groups</h3>
+                    <div id="admin-groups"></div>
+                    <button class="btn" style="width:100%; margin-top:10px; border-style:dashed;" onclick="Admin.addGroup()">+ Add Group</button>
+
+                    <h3 style="border-bottom:1px solid var(--border-subtle); padding-bottom:10px; margin-top:40px;">Fields & Columns</h3>
+                    <div id="admin-fields"></div>
+                    <button class="btn" style="width:100%; margin-top:10px; border-style:dashed;" onclick="Admin.addField()">+ Add Field</button><br><br>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+/** 
+ * Archivist v1
+ * Features: Root Path UI, Combined Path Renderer, Group Toggle
+ */
+
+const DEFS = {
+    inputTypes: ['text', 'number', 'select', 'textarea', 'date', 'boolean', 'tags', 'rating'],
+    // New Renderer 'relpath' added for combined display
+    renderers: { 
+        'text': 'Plain Text',
+        'badge': 'Badge',
+        'bool': 'Boolean (✔ / ✘)',
+        'size': 'File Size',
+        'path': 'Full Path (Raw)',
+        'relpath': 'Combined Path (Dir/File)',
+        'link': 'URL Link',
+        'date': 'Date',
+        'rating': 'Star Rating' 
+    },
+    resolvers: {
+        'cleanName': { label: "Clean Name (No Ext)", fn: f => f.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ") },
+        'filename': { label: "Filename", fn: f => f.name },
+        'size': { label: "Size (Bytes)", fn: f => f.size },
+        'ext': { label: "Extension", fn: f => f.name.split('.').pop().toLowerCase() },
+        'slug': { label: "Slug ID", fn: f => Utils.slugify(f.name) },
+        'now': { label: "Current Date", fn: () => new Date().toISOString().split('T')[0] }
+    }
+};
+
+const Store = {
+    data: { meta: {}, config: { schema: { groups: {}, fields: [], tableColumns: [] } }, items: [] },
+    fileHandle: null, editingId: null, isDirty: false,
+    
+    load(json) { 
+        this.data = json; 
+        if (!this.data.items) this.data.items = [];
+        if (!this.data.config.schema.groups) this.data.config.schema.groups = {};
+    },
+    upsertItem(item) {
+        const idx = this.data.items.findIndex(i => i.id === item.id);
+        if (idx >= 0) this.data.items[idx] = item; else this.data.items.push(item);
+        this.setDirty(true);
+    },
+    deleteItem(id) {
+        this.data.items = this.data.items.filter(i => i.id !== id);
+        this.setDirty(true);
+    },
+    setDirty(val) {
+        this.isDirty = val;
+        document.getElementById('unsaved-badge').style.display = val ? 'inline-flex' : 'none';
+        window.onbeforeunload = val ? () => "Unsaved changes" : null;
+    }
+};
+
+const Utils = {
+    get: (obj, path) => path.split('.').reduce((a, b) => (a && a[b] !== undefined) ? a[b] : undefined, obj),
+    set: (obj, path, val) => { const keys = path.split('.'); const last = keys.pop(); keys.reduce((a, b) => a[b] = a[b] || {}, obj)[last] = val; },
+    formatBytes: (bytes) => { if (!bytes) return '-'; const i = Math.floor(Math.log(bytes) / Math.log(1024)); return parseFloat((bytes / Math.pow(1024, i)).toFixed(2)) + ' ' + ['B', 'KB', 'MB', 'GB', 'TB'][i]; },
+    slugify: (text) => text.toString().toLowerCase().trim().replace(/\s+/g, '-').replace(/[^\w\-]+/g, '').substring(0, 60),
+    toast: (msg) => { const t = document.getElementById('toast'); t.textContent = msg; t.className = 'show'; setTimeout(() => t.className = '', 3000); }
+};
+
+const IO = {
+    init() {
+    // --- Sidebar Asset Drop Zone ---
+    const dz = document.getElementById('drop-zone');
+    dz.ondragover = e => { e.preventDefault(); dz.classList.add('active'); };
+    dz.ondragleave = () => dz.classList.remove('active');
+    dz.ondrop = e => { e.preventDefault(); dz.classList.remove('active'); Logic.handleDrop(e.dataTransfer.files[0]); };
+
+    // --- Loader JSON Drop Zone ---
+    const loaderDz = document.getElementById('loader-drop-zone');
+    if (loaderDz) {
+        loaderDz.ondragover = e => { 
+            e.preventDefault(); 
+            loaderDz.classList.add('drag-active'); 
+        };
+        loaderDz.ondragleave = () => {
+            loaderDz.classList.remove('drag-active');
+        };
+        loaderDz.ondrop = e => { 
+            e.preventDefault(); 
+            loaderDz.classList.remove('drag-active'); 
+            
+            // Dosya var mı kontrol et ve yükleme fonksiyonuna gönder
+            if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                this.handleFileSelect(e.dataTransfer.files[0]);
+            }
+        };
+    }
+
+    // --- Keyboard Shortcuts ---
+    document.addEventListener('keydown', e => { 
+        if ((e.ctrlKey || e.metaKey) && e.key === 's') { 
+            e.preventDefault(); 
+            this.saveSmart(); 
+        } 
+    });
+},
+    async openLibrary() {
+        if (window.showOpenFilePicker) {
+            try {
+                const [handle] = await window.showOpenFilePicker({ types: [{ description: 'JSON', accept: { 'application/json': ['.json'] } }] });
+                Store.fileHandle = handle; this.readFile(await handle.getFile(), true);
+            } catch (e) {}
+        } else { document.getElementById('file-input').click(); }
+    },
+    handleFileSelect(file) { this.readFile(file, false); },
+    readFile(file, isDirect) {
+        const reader = new FileReader();
+        reader.onload = e => {
+            try {
+                Store.load(JSON.parse(e.target.result));
+                UI.init(isDirect, file.name);
+            } catch (err) { alert("Error: " + err.message); }
+        };
+        reader.readAsText(file);
+    },
+    async saveSmart() {
+        Store.data.meta.last_updated = new Date().toISOString();
+        const str = JSON.stringify(Store.data, null, 2);
+        if (Store.fileHandle) {
+            const w = await Store.fileHandle.createWritable(); await w.write(str); await w.close();
+            Store.setDirty(false); Utils.toast("Saved to Disk");
+        } else { this.downloadCopy(); Store.setDirty(false); }
+    },
+    downloadCopy() {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([JSON.stringify(Store.data, null, 2)], { type: "application/json" }));
+        a.download = (Store.data.meta.title || "library") + ".json"; a.click();
+    }
+};
+
+const Logic = {
+    createNew() {
+        Store.data = {
+            meta: { title: "New Library", root_path: "", version: "1.0" },
+            config: {
+                schema: {
+                    groups: { "main": { "title": "Main Data", "defaultOpen": true } },
+                    fields:[ { "key": "id", "label": "Item ID", "type": "text", "group": "main" } ],
+                    tableColumns:[ { "key": "id", "label": "ID", "type": "text" } ]
+                }
+            },
+            items:[]
+        };
+        Store.fileHandle = null;
+        Store.setDirty(true);
+        UI.init(false, "New Library");
+        Admin.toggleView();
+    },
+    handleDrop(file) {
+        Logic.clearForm();
+        Store.data.config.schema.fields.forEach(f => {
+            if (f.autofill && DEFS.resolvers[f.autofill]) UI.setInputValue(f.key, DEFS.resolvers[f.autofill].fn(file));
+        });
+        Utils.toast("Autofilled from File");
+    },
+    saveItem() {
+        const inputs = document.querySelectorAll('#editor-form [data-key]');
+        const newItem = {}; let idVal = '';
+        inputs.forEach(el => {
+            let val;
+            if (el.type === 'checkbox') val = el.checked;
+            else if (el.dataset.type === 'tags') val = el.value.split(',').map(s=>s.trim()).filter(Boolean);
+            else if (el.dataset.type === 'number') val = Number(el.value);
+            else val = el.value;
+            Utils.set(newItem, el.dataset.key, val);
+            if (el.dataset.key === 'id') idVal = val;
+        });
+        if (!idVal) { alert("ID required"); return; }
+        Store.upsertItem(newItem); UI.renderTable(); Logic.clearForm(); Utils.toast("Saved");
+    },
+    deleteItem() {
+        if (!Store.editingId || !confirm("Delete?")) return;
+        Store.deleteItem(Store.editingId); UI.renderTable(); Logic.clearForm();
+    },
+    clearForm() {
+        Store.editingId = null; document.getElementById('editor-form').reset();
+        document.querySelectorAll('.active-row').forEach(r => r.classList.remove('active-row'));
+    },
+    editRootPath() {
+        const current = Store.data.meta.root_path || "";
+        const newVal = prompt("Set Global Root Path (e.g. C:/Assets):", current);
+        if (newVal !== null) {
+            Store.data.meta.root_path = newVal.replace(/\\/g, '/').replace(/\/$/, '');
+            Store.setDirty(true);
+            UI.updateRootDisplay();
+            UI.renderTable(); // Re-render to update combined paths if needed
+        }
+    }
+};
+
+const UI = {
+    init(isDirect, filename) {
+        document.getElementById('loader').style.display = 'none';
+        document.getElementById('app').classList.remove('hidden');
+        document.getElementById('status-dot').classList.toggle('active', isDirect);
+        document.getElementById('app-title-text').textContent = Store.data.meta.title || filename;
+        this.updateRootDisplay();
+        this.buildForm();
+        this.renderTable();
+    },
+    updateRootDisplay() {
+        const rp = Store.data.meta.root_path;
+        document.getElementById('root-path-display').textContent = rp ? `📂 ${rp}` : "📂 Root: [Click to Set]";
+    },
+    buildForm() {
+        const form = document.getElementById('editor-form'); form.innerHTML = '';
+        const schema = Store.data.config.schema;
+        const groupEls = {};
+        
+        Object.entries(schema.groups).forEach(([key, g]) => {
+            const div = document.createElement('div'); div.className = 'group-details';
+            // v1 FIX: Use defaultOpen property
+            div.innerHTML = `<details ${g.defaultOpen !== false ? 'open' : ''}>
+                <summary class="group-summary">${g.title} <span style="font-size:10px; opacity:0.5">▼</span></summary>
+                <div class="group-body"></div>
+            </details>`;
+            form.appendChild(div);
+            groupEls[key] = div.querySelector('.group-body');
+        });
+
+        schema.fields.forEach(f => {
+            const container = (f.group && groupEls[f.group]) ? groupEls[f.group] : form;
+            const wrap = document.createElement('div'); wrap.className = 'form-group';
+            let inputHTML = '';
+            if (f.type === 'select') {
+                const opts = (f.options || []).map(o => `<option value="${o}">${o}</option>`).join('');
+                inputHTML = `<select class="input" data-key="${f.key}">${opts}</select>`;
+            } else if (f.type === 'textarea') {
+                inputHTML = `<textarea class="input" rows="3" data-key="${f.key}"></textarea>`;
+            } else if (f.type === 'boolean') {
+                inputHTML = `<div style="display:flex; align-items:center; gap:10px; background:var(--bg-root); padding:8px; border-radius:6px; border:1px solid var(--border-subtle);"><input type="checkbox" data-key="${f.key}" style="width:auto; margin:0;"> <span style="font-size:12px;">Enable</span></div>`;
+            } else if (f.type === 'rating') {
+                inputHTML = `<input type="number" min="1" max="5" class="input" data-key="${f.key}" placeholder="1-5">`;
+            } else {
+                inputHTML = `<input type="${f.type||'text'}" class="input" data-key="${f.key}" data-type="${f.type}" ${f.readonly?'readonly':''}>`;
+            }
+            wrap.innerHTML = `<label>${f.label}</label>${inputHTML}`;
+            container.appendChild(wrap);
+        });
+    },
+    renderTable() {
+        const tbody = document.getElementById('table-body');
+        const thead = document.getElementById('table-head');
+        tbody.innerHTML = ''; thead.innerHTML = '';
+        const cols = Store.data.config.schema.tableColumns || [];
+        const filter = document.getElementById('search-input').value.toLowerCase();
+        
+        cols.forEach(c => { const th = document.createElement('th'); th.textContent = c.label; thead.appendChild(th); });
+        
+        const items = Store.data.items.filter(i => JSON.stringify(i).toLowerCase().includes(filter));
+        document.getElementById('stats-display').textContent = `${items.length} items`;
+
+        // Identify filename key for smart combining
+        const filenameField = Store.data.config.schema.fields.find(f => f.autofill === 'filename');
+        const filenameKey = filenameField ? filenameField.key : 'file.name'; // Fallback
+
+        items.reverse().forEach(item => {
+            const tr = document.createElement('tr');
+            if(item.id === Store.editingId) tr.classList.add('active-row');
+            tr.onclick = () => { Store.editingId = item.id; this.loadItem(item); document.querySelectorAll('.active-row').forEach(r=>r.classList.remove('active-row')); tr.classList.add('active-row'); };
+            
+            cols.forEach(col => {
+                const td = document.createElement('td');
+                let val = Utils.get(item, col.key);
+                
+                if (col.type === 'size') {
+                val = Utils.formatBytes(val);
+                }
+
+
+                else if (col.type === 'badge') {
+    if (val) {
+        // Badge generator
+        const createBadge = (text) => {
+            let str = String(text);
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                hash = str.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            const hue = Math.abs(hash % 360);
+            const colorStyle = `background: hsl(${hue}, 60%, 15%); color: hsl(${hue}, 80%, 80%); border-color: hsl(${hue}, 60%, 25%); margin-right: 4px;`;
+            return `<span class="badge" style="${colorStyle}">${str}</span>`;
+        };
+
+        // Create a badge for each element in the array.
+        if (Array.isArray(val)) {
+            val = val.map(v => createBadge(v)).join('');
+        } else {
+            val = createBadge(val);
+        }
+    }
+    else { val = ''; }
+}
+                
+
+                else if (col.type === 'path') {
+                val = `<span class="font-mono text-muted" style="font-size:11px;">${val}</span>`;
+                }
+
+
+                else if (col.type === 'rating') {
+                val = '★'.repeat(Number(val) || 0) + '☆'.repeat(5 - (Number(val) || 0));
+                }
+                
+
+                else if (col.type === 'bool') {
+                const isTrue = val === true || val === 'true' || val === 1;
+                if (isTrue) { val = `<span style="color:var(--success); font-size:14px;">✔</span>`; }
+                else { val = `<span style="color:var(--danger); font-size:14px; opacity:0.6;">✘</span>`; }
+                } 
+                
+
+                else if (col.type === 'relpath') {
+                const dir = val ? val.replace(/\/$/, '') : '';
+                const fname = Utils.get(item, filenameKey) || '';
+                const fullRel = (dir ? dir + '/' : '') + fname;
+                val = `<span class="font-mono text-muted" style="font-size:11px;">${fullRel}</span>`;
+                }
+
+                
+                td.innerHTML = (val !== undefined && val !== null) ? val : '<span style="opacity:0.2">-</span>';
+                tr.appendChild(td);
+            });
+            tbody.appendChild(tr);
+        });
+    },
+    loadItem(item) { document.querySelectorAll('#editor-form [data-key]').forEach(el => { const val = Utils.get(item, el.dataset.key); if(el.type === 'checkbox') el.checked = !!val; else el.value = (val===undefined||val===null)?'':val; }); },
+    setInputValue(key, val) { const el = document.querySelector(`[data-key="${key}"]`); if(el) el.value = val; }
+};
+
+const Admin = {
+    toggleView() { document.getElementById('admin-view').classList.toggle('hidden'); if(!document.getElementById('admin-view').classList.contains('hidden')) this.renderSchema(); },
+    renderSchema() {
+        const schema = Store.data.config.schema;
+        const gC = document.getElementById('admin-groups'); gC.innerHTML = '';
+        Object.entries(schema.groups).forEach(([key, g]) => {
+            const div = document.createElement('div'); div.className = 'schema-card';
+            // v1 FIX: Added 'Default Open' Checkbox
+            div.innerHTML = `<span class="remove-icon" onclick="this.parentElement.remove()">✕</span>
+            <div class="card-row"><div class="flex-1"><label>ID</label><input type="text" class="adm-gid" value="${key}"></div><div class="flex-1"><label>Title</label><input type="text" class="adm-gtitle" value="${g.title}"></div></div>
+            <div class="card-row"><div style="display:flex; gap:10px; align-items:center;"><input type="checkbox" class="adm-gopen" style="width:auto;" ${g.defaultOpen!==false?'checked':''}> <span style="font-size:11px;">Start Open</span></div></div>`;
+            gC.appendChild(div);
+        });
+        const fC = document.getElementById('admin-fields'); fC.innerHTML = '';
+        schema.fields.forEach(f => this.createFieldCard(fC, f, schema));
+    },
+    createFieldCard(container, f, schema) {
+        const div = document.createElement('div'); div.className = 'schema-card';
+        const types = DEFS.inputTypes.map(t => `<option ${t===f.type?'selected':''}>${t}</option>`).join('');
+        const resolvers = Object.keys(DEFS.resolvers).map(k => `<option value="${k}" ${k===f.autofill?'selected':''}>${DEFS.resolvers[k].label}</option>`).join('');
+        const groupOpts = Object.keys(schema.groups).map(k => `<option value="${k}" ${k===f.group?'selected':''}>${schema.groups[k].title}</option>`).join('');
+        const col = (schema.tableColumns||[]).find(c=>c.key===f.key);
+        const renders = Object.keys(DEFS.renderers).map(k => `<option value="${k}" ${k===(col?.type||'text')?'selected':''}>${DEFS.renderers[k]}</option>`).join('');
+
+        div.innerHTML = `<span class="remove-icon" onclick="this.parentElement.remove()">✕</span>
+            <div class="card-row"><div class="flex-1"><label>Data Key</label><input class="adm-key" value="${f.key||''}"></div><div class="flex-1"><label>Label</label><input class="adm-label" value="${f.label||''}"></div><div style="width:100px"><label>Type</label><select class="adm-type">${types}</select></div></div>
+            <div class="card-row"><div class="flex-1"><label>Group</label><select class="adm-group">${groupOpts}</select></div><div class="flex-1"><label>Resolver</label><select class="adm-resolver"><option value="">None</option>${resolvers}</select></div></div>
+            <div style="background:rgba(255,255,255,0.05); padding:10px; border-radius:4px; display:flex; align-items:center; gap:10px;">
+                <input type="checkbox" class="adm-show" style="width:auto;" ${col?'checked':''}> <span style="font-size:12px; font-weight:600;">Table Column:</span> <select class="adm-render" style="width:150px;" ${!col?'disabled':''}>${renders}</select>
+            </div>`;
+        div.querySelector('.adm-show').onchange = e => { div.querySelector('.adm-render').disabled = !e.target.checked; };
+        container.appendChild(div);
+    },
+    addGroup() {
+        const div = document.createElement('div'); div.className = 'schema-card';
+        div.innerHTML = `<span class="remove-icon" onclick="this.parentElement.remove()">✕</span><div class="card-row"><div class="flex-1"><label>ID</label><input class="adm-gid" value="new_group"></div><div class="flex-1"><label>Title</label><input class="adm-gtitle" value="New Group"></div></div><div class="card-row"><input type="checkbox" class="adm-gopen" style="width:auto;" checked> Start Open</div>`;
+        document.getElementById('admin-groups').appendChild(div);
+    },
+    addField() { this.createFieldCard(document.getElementById('admin-fields'), { key:'new.field', label:'New Field', type:'text' }, Store.data.config.schema); },
+    saveSchema() {
+        const groups = {};
+        document.querySelectorAll('#admin-groups .schema-card').forEach(el => {
+            const id = el.querySelector('.adm-gid').value;
+            if(id) groups[id] = { 
+                title: el.querySelector('.adm-gtitle').value, 
+                defaultOpen: el.querySelector('.adm-gopen').checked // v1 FIX
+            };
+        });
+        const fields = [], cols = [];
+        document.querySelectorAll('#admin-fields .schema-card').forEach(el => {
+            const key = el.querySelector('.adm-key').value; if(!key) return;
+            const field = { key, label: el.querySelector('.adm-label').value, type: el.querySelector('.adm-type').value, group: el.querySelector('.adm-group').value, autofill: el.querySelector('.adm-resolver').value || undefined };
+            fields.push(field);
+            if(el.querySelector('.adm-show').checked) cols.push({ key, label: field.label, type: el.querySelector('.adm-render').value });
+        });
+        Store.data.config.schema = { groups, fields, tableColumns: cols };
+        Store.setDirty(true); this.toggleView(); UI.buildForm(); UI.renderTable(); Utils.toast("Schema Updated");
+    }
+};
+
+IO.init();
+</script>
+</body>
+</html>
