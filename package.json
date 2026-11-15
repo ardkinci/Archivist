@@ -1,6 +1,6 @@
 {
   "name": "archivist",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "A portable, single-file asset manager shaped by custom JSON schemas. Organize by metadata, not rigid folders.",
   "main": "index.js",
   "scripts": {
