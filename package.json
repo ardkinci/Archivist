@@ -1,0 +1,17 @@
+{
+  "name": "archivist",
+  "version": "1.0.0",
+  "description": "A portable, single-file asset manager shaped by custom JSON schemas. Organize by metadata, not rigid folders.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "release": "commit-and-tag-version"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "commit-and-tag-version": "^13.3.0"
+  }
+}
